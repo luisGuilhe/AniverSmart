@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator,
 } from 'react-native';
@@ -7,12 +7,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { useCalendarSync } from '../hooks/useCalendarSync';
 import { useApp } from '../context/AppContext';
 import { useTheme } from '../hooks/useTheme';
+import { NotificationPanel } from '../components/NotificationPanel';
+import { useBirthdayNotifications } from '../hooks/useBirthdayNotifications';
 import { formatBirthDateForDisplay } from '../utils/formatting';
 
 export default function Sincronizar() {
   const { sync, syncing, lastResult, error } = useCalendarSync();
   const { contacts } = useApp();
   const { colors, isDark } = useTheme();
+  const [showNotifications, setShowNotifications] = useState(false);
+  const { totalCount } = useBirthdayNotifications();
 
   const googleContacts = contacts.filter(c => c.fromGoogle === 1);
 
@@ -26,8 +30,13 @@ export default function Sincronizar() {
           </View>
           <Text style={[styles.appBarTitle, { color: colors.primary }]}>AniverSmart</Text>
         </View>
-        <TouchableOpacity hitSlop={8}>
+        <TouchableOpacity hitSlop={8} onPress={() => setShowNotifications(true)}>
           <Ionicons name="notifications-outline" size={22} color={colors.textSecondary} />
+          {totalCount > 0 && (
+            <View style={[styles.badge, { backgroundColor: colors.todayBadge }]}>
+              <Text style={styles.badgeText}>{totalCount > 9 ? '9+' : totalCount}</Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -152,6 +161,11 @@ export default function Sincronizar() {
           </View>
         </View>
       </ScrollView>
+
+      <NotificationPanel
+        visible={showNotifications}
+        onClose={() => setShowNotifications(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -172,6 +186,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
   },
   appBarTitle: { fontSize: 17, fontWeight: '700' },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 3,
+  },
+  badgeText: { color: '#fff', fontSize: 9, fontWeight: '800' },
   body: { padding: 16, gap: 14, paddingBottom: 40 },
   hero: { paddingTop: 8, paddingBottom: 4 },
   pageTitle: { fontSize: 28, fontWeight: '800', letterSpacing: -0.4 },

@@ -11,7 +11,9 @@ import { useTheme } from '../hooks/useTheme';
 import { ContactCard } from '../components/ContactCard';
 import { ContactForm } from '../components/ContactForm';
 import { MessagePreview } from '../components/MessagePreview';
+import { NotificationPanel } from '../components/NotificationPanel';
 import { LoadingSpinner } from '../components/LoadingSpinner';
+import { useBirthdayNotifications } from '../hooks/useBirthdayNotifications';
 import { Contact } from '../services/database';
 import { daysUntilBirthday } from '../utils/formatting';
 
@@ -30,8 +32,10 @@ export default function Dashboard() {
 
   const [search, setSearch]         = useState('');
   const [sortKey, setSortKey]       = useState<SortKey>('days');
-  const [showForm, setShowForm]     = useState(false);
-  const [messageContact, setMessageContact] = useState<Contact | null>(null);
+  const [showForm, setShowForm]         = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [messageContact, setMessageContact]       = useState<Contact | null>(null);
+  const { totalCount } = useBirthdayNotifications();
 
   const thisMonthCount = useMemo(() => {
     const month = new Date().getMonth();
@@ -143,8 +147,13 @@ export default function Dashboard() {
           </View>
           <Text style={[styles.appBarTitle, { color: colors.primary }]}>AniverSmart</Text>
         </View>
-        <TouchableOpacity hitSlop={8}>
+        <TouchableOpacity hitSlop={8} onPress={() => setShowNotifications(true)}>
           <Ionicons name="notifications-outline" size={22} color={colors.textSecondary} />
+          {totalCount > 0 && (
+            <View style={[styles.badge, { backgroundColor: colors.todayBadge }]}>
+              <Text style={styles.badgeText}>{totalCount > 9 ? '9+' : totalCount}</Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -194,6 +203,11 @@ export default function Dashboard() {
         contact={messageContact}
         onClose={() => setMessageContact(null)}
       />
+
+      <NotificationPanel
+        visible={showNotifications}
+        onClose={() => setShowNotifications(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -217,6 +231,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   appBarTitle: { fontSize: 17, fontWeight: '700' },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 3,
+  },
+  badgeText: { color: '#fff', fontSize: 9, fontWeight: '800' },
   hero: {
     paddingHorizontal: 16,
     paddingTop: 24,

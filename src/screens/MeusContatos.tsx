@@ -9,17 +9,21 @@ import { useTheme } from '../hooks/useTheme';
 import { ContactCard } from '../components/ContactCard';
 import { ContactForm } from '../components/ContactForm';
 import { MessagePreview } from '../components/MessagePreview';
+import { NotificationPanel } from '../components/NotificationPanel';
 import { LoadingSpinner } from '../components/LoadingSpinner';
+import { useBirthdayNotifications } from '../hooks/useBirthdayNotifications';
 import { Contact } from '../services/database';
 
 export default function MeusContatos() {
   const { contacts, loading, addContact, editContact, removeContact } = useContacts();
   const { colors } = useTheme();
 
-  const [search, setSearch]           = useState('');
-  const [showForm, setShowForm]       = useState(false);
-  const [editingContact, setEditingContact] = useState<Contact | undefined>();
-  const [messageContact, setMessageContact] = useState<Contact | null>(null);
+  const [search, setSearch]                   = useState('');
+  const [showForm, setShowForm]               = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [editingContact, setEditingContact]   = useState<Contact | undefined>();
+  const [messageContact, setMessageContact]   = useState<Contact | null>(null);
+  const { totalCount } = useBirthdayNotifications();
 
   const filtered = useMemo(() => {
     if (!search.trim()) return contacts;
@@ -86,8 +90,13 @@ export default function MeusContatos() {
           </View>
           <Text style={[styles.appBarTitle, { color: colors.primary }]}>AniverSmart</Text>
         </View>
-        <TouchableOpacity hitSlop={8}>
+        <TouchableOpacity hitSlop={8} onPress={() => setShowNotifications(true)}>
           <Ionicons name="notifications-outline" size={22} color={colors.textSecondary} />
+          {totalCount > 0 && (
+            <View style={[styles.badge, { backgroundColor: colors.todayBadge }]}>
+              <Text style={styles.badgeText}>{totalCount > 9 ? '9+' : totalCount}</Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -168,6 +177,11 @@ export default function MeusContatos() {
         contact={messageContact}
         onClose={() => setMessageContact(null)}
       />
+
+      <NotificationPanel
+        visible={showNotifications}
+        onClose={() => setShowNotifications(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -188,6 +202,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
   },
   appBarTitle: { fontSize: 17, fontWeight: '700' },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 3,
+  },
+  badgeText: { color: '#fff', fontSize: 9, fontWeight: '800' },
   pageHeader: {
     flexDirection: 'row',
     alignItems: 'flex-end',
