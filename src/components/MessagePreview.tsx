@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, StyleSheet, TouchableOpacity,
-  Modal, ActivityIndicator,
+  Modal, ActivityIndicator, ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
@@ -67,7 +67,12 @@ export function MessagePreview({ visible, contact, onClose }: Props) {
           <View style={{ width: 32 }} />
         </View>
 
-        <View style={styles.body}>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={styles.body}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
           {/* Contact info */}
           <View style={[styles.contactCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
@@ -142,7 +147,7 @@ export function MessagePreview({ visible, contact, onClose }: Props) {
               </View>
             </>
           )}
-        </View>
+        </ScrollView>
       </View>
     </Modal>
   );
