@@ -2,8 +2,12 @@ import * as Notifications from 'expo-notifications';
 import * as TaskManager from 'expo-task-manager';
 import * as BackgroundFetch from 'expo-background-fetch';
 import * as FileSystem from 'expo-file-system';
+import Constants from 'expo-constants';
 import { getAllContacts } from './database';
 import { daysUntilBirthday } from '../utils/formatting';
+
+// Notificações locais funcionam no Expo Go; background fetch não
+const IS_EXPO_GO = Constants.appOwnership === 'expo';
 
 const BACKGROUND_TASK = 'birthday-check';
 const NOTIFIED_FILE = `${FileSystem.documentDirectory}notified_today.json`;
@@ -97,7 +101,7 @@ export async function scheduleDailyCheck(): Promise<void> {
   });
 }
 
-// Background task — roda quando o app está em segundo plano
+// Background task — roda quando o app está em segundo plano (não disponível no Expo Go)
 TaskManager.defineTask(BACKGROUND_TASK, async () => {
   try {
     await checkAndNotifyBirthdays();
@@ -108,9 +112,10 @@ TaskManager.defineTask(BACKGROUND_TASK, async () => {
 });
 
 export async function registerBackgroundTask(): Promise<void> {
+  if (IS_EXPO_GO) return; // background fetch não suportado no Expo Go
   try {
     await BackgroundFetch.registerTaskAsync(BACKGROUND_TASK, {
-      minimumInterval: 60 * 60 * 8, // no mínimo a cada 8h (o SO decide quando executar)
+      minimumInterval: 60 * 60 * 8,
       stopOnTerminate: false,
       startOnBoot: true,
     });
