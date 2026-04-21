@@ -1,5 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { AppState } from 'react-native';
 import { getAllContacts, Contact } from '../services/database';
+import {
+  checkAndNotifyBirthdays,
+  scheduleDailyCheck,
+  registerBackgroundTask,
+} from '../services/notifications';
 
 interface AppContextValue {
   contacts: Contact[];
@@ -29,7 +35,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     refreshContacts();
-  }, [refreshContacts]);
+    scheduleDailyCheck();
+    registerBackgroundTask();
+    checkAndNotifyBirthdays();
+  }, []);
+
+  // Re-verifica aniversários quando o app volta ao primeiro plano
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', state => {
+      if (state === 'active') checkAndNotifyBirthdays();
+    });
+    return () => sub.remove();
+  }, []);
 
   return (
     <AppContext.Provider value={{ contacts, loadingContacts, refreshContacts }}>

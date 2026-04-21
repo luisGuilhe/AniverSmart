@@ -28,13 +28,23 @@
         "android.permission.INTERNET",
         "android.permission.READ_CONTACTS",
         "android.permission.READ_CALENDAR",
-        "android.permission.WRITE_CALENDAR"
+        "android.permission.WRITE_CALENDAR",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.SCHEDULE_EXACT_ALARM"
       ],
       "package": "com.aniversmart.app"
     },
     "plugins": [
       "expo-calendar",
-      "expo-image-picker"
+      "expo-image-picker",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#006948",
+          "sounds": []
+        }
+      ]
     ]
   }
 }
