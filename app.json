@@ -15,7 +15,6 @@
       "**/*"
     ],
     "ios": {
-      "supportsTabletMode": true,
       "bundleIdentifier": "com.aniversmart.app"
     },
     "android": {
@@ -30,7 +29,8 @@
         "android.permission.READ_CALENDAR",
         "android.permission.WRITE_CALENDAR",
         "android.permission.RECEIVE_BOOT_COMPLETED",
-        "android.permission.SCHEDULE_EXACT_ALARM"
+        "android.permission.SCHEDULE_EXACT_ALARM",
+        "android.permission.RECORD_AUDIO"
       ],
       "package": "com.aniversmart.app"
     },
@@ -44,7 +44,13 @@
           "color": "#006948",
           "sounds": []
         }
-      ]
-    ]
+      ],
+      "expo-font"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "d3bb73ad-bb01-4111-995a-2fe69a32f0c7"
+      }
+    }
   }
 }
