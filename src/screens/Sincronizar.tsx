@@ -8,15 +8,13 @@ import { useCalendarSync } from '../hooks/useCalendarSync';
 import { useApp } from '../context/AppContext';
 import { useTheme } from '../hooks/useTheme';
 import { NotificationPanel } from '../components/NotificationPanel';
-import { useBirthdayNotifications } from '../hooks/useBirthdayNotifications';
 import { formatBirthDateForDisplay } from '../utils/formatting';
 
 export default function Sincronizar() {
   const { sync, syncing, lastResult, error } = useCalendarSync();
-  const { contacts } = useApp();
+  const { contacts, unreadCount } = useApp();
   const { colors, isDark } = useTheme();
   const [showNotifications, setShowNotifications] = useState(false);
-  const { totalCount } = useBirthdayNotifications();
 
   const googleContacts = contacts.filter(c => c.fromGoogle === 1);
 
@@ -32,9 +30,9 @@ export default function Sincronizar() {
         </View>
         <TouchableOpacity hitSlop={8} onPress={() => setShowNotifications(true)}>
           <Ionicons name="notifications-outline" size={22} color={colors.textSecondary} />
-          {totalCount > 0 && (
+          {unreadCount > 0 && (
             <View style={[styles.badge, { backgroundColor: colors.todayBadge }]}>
-              <Text style={styles.badgeText}>{totalCount > 9 ? '9+' : totalCount}</Text>
+              <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
             </View>
           )}
         </TouchableOpacity>

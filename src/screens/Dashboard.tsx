@@ -13,7 +13,6 @@ import { ContactForm } from '../components/ContactForm';
 import { MessagePreview } from '../components/MessagePreview';
 import { NotificationPanel } from '../components/NotificationPanel';
 import { LoadingSpinner } from '../components/LoadingSpinner';
-import { useBirthdayNotifications } from '../hooks/useBirthdayNotifications';
 import { Contact } from '../services/database';
 import { daysUntilBirthday } from '../utils/formatting';
 
@@ -26,7 +25,7 @@ const SORT_LABELS: [SortKey, string][] = [
 ];
 
 export default function Dashboard() {
-  const { contacts, loadingContacts, refreshContacts } = useApp();
+  const { contacts, loadingContacts, refreshContacts, unreadCount } = useApp();
   const { addContact } = useContacts();
   const { colors } = useTheme();
 
@@ -35,7 +34,6 @@ export default function Dashboard() {
   const [showForm, setShowForm]         = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [messageContact, setMessageContact]       = useState<Contact | null>(null);
-  const { totalCount } = useBirthdayNotifications();
 
   const thisMonthCount = useMemo(() => {
     const month = new Date().getMonth();
@@ -149,9 +147,9 @@ export default function Dashboard() {
         </View>
         <TouchableOpacity hitSlop={8} onPress={() => setShowNotifications(true)}>
           <Ionicons name="notifications-outline" size={22} color={colors.textSecondary} />
-          {totalCount > 0 && (
+          {unreadCount > 0 && (
             <View style={[styles.badge, { backgroundColor: colors.todayBadge }]}>
-              <Text style={styles.badgeText}>{totalCount > 9 ? '9+' : totalCount}</Text>
+              <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
             </View>
           )}
         </TouchableOpacity>

@@ -2,6 +2,7 @@ import React from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Modal, Switch,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { ThemeMode } from '../context/ThemeContext';
@@ -20,13 +21,7 @@ const THEME_OPTIONS: { mode: ThemeMode; label: string; icon: string }[] = [
 export function SettingsModal({ visible, onClose }: Props) {
   const { colors, isDark, mode, setMode } = useTheme();
 
-  const toggleDark = () => {
-    if (mode === 'system') {
-      setMode(isDark ? 'light' : 'dark');
-    } else {
-      setMode(isDark ? 'light' : 'dark');
-    }
-  };
+  const toggleDark = () => setMode(isDark ? 'light' : 'dark');
 
   return (
     <Modal
@@ -35,7 +30,7 @@ export function SettingsModal({ visible, onClose }: Props) {
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
         {/* Header */}
         <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.divider }]}>
           <View style={styles.headerLeft}>
@@ -152,7 +147,7 @@ export function SettingsModal({ visible, onClose }: Props) {
           </View>
 
         </View>
-      </View>
+      </SafeAreaView>
     </Modal>
   );
 }

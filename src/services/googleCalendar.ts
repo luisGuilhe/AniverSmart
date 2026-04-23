@@ -18,8 +18,8 @@ export async function syncBirthdaysFromCalendar(): Promise<{ added: number; skip
 
   const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
 
-  const oneYearAgo = new Date();
-  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+  // Busca apenas eventos futuros (até 2 anos à frente) — não há motivo para buscar eventos passados
+  const startDate = new Date();
   const twoYearsAhead = new Date();
   twoYearsAhead.setFullYear(twoYearsAhead.getFullYear() + 2);
 
@@ -33,10 +33,10 @@ export async function syncBirthdaysFromCalendar(): Promise<{ added: number; skip
     ? birthdayCalendars.map(c => c.id)
     : calendars.map(c => c.id);
 
-  const events = await Calendar.getEventsAsync(calendarIds, oneYearAgo, twoYearsAhead);
+  const events = await Calendar.getEventsAsync(calendarIds, startDate, twoYearsAhead);
 
   const birthdayEvents = events.filter(e => {
-    const title = e.title?.toLowerCase() ?? '';
+    const title = typeof e.title === 'string' ? e.title.toLowerCase() : '';
     return title.includes('aniversário') || title.includes('birthday') || title.includes('anos');
   });
 
@@ -49,7 +49,7 @@ export async function syncBirthdaysFromCalendar(): Promise<{ added: number; skip
   const seen = new Set<string>();
 
   for (const event of birthdayEvents) {
-    const name = extractNameFromTitle(event.title ?? '');
+    const name = extractNameFromTitle(event.title);
     if (!name || seen.has(name.toLowerCase())) { skipped++; continue; }
     seen.add(name.toLowerCase());
 
@@ -65,7 +65,7 @@ export async function syncBirthdaysFromCalendar(): Promise<{ added: number; skip
       name,
       birthDate,
       relationship: 'conhecido',
-      phone: '',
+      phone: '',       // contatos do calendário podem não ter telefone
       photoUri: undefined,
       fromGoogle: 1,
     });
@@ -75,7 +75,8 @@ export async function syncBirthdaysFromCalendar(): Promise<{ added: number; skip
   return { added, skipped };
 }
 
-function extractNameFromTitle(title: string): string {
+function extractNameFromTitle(title: string | null | undefined): string {
+  if (typeof title !== 'string' || !title.trim()) return '';
   return title
     .replace(/aniversário (de |do |da )?/gi, '')
     .replace(/birthday( of| for)?/gi, '')

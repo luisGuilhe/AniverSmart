@@ -1,8 +1,9 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, TextInput, StyleSheet, TouchableOpacity,
   ScrollView, Modal, Image, ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useTheme } from '../hooks/useTheme';
@@ -51,6 +52,11 @@ export function ContactForm({ visible, initialData, onSubmit, onClose }: Props) 
     setErrors({});
   }, [initialData]);
 
+  // Garante que o formulário reseta corretamente ao abrir (edição ou criação)
+  useEffect(() => {
+    if (visible) resetForm();
+  }, [visible, resetForm]);
+
   const handleClose = () => { resetForm(); onClose(); };
 
   const handleSubmit = async () => {
@@ -97,7 +103,7 @@ export function ContactForm({ visible, initialData, onSubmit, onClose }: Props) 
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={handleClose}>
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
         {/* Header */}
         <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.divider }]}>
           <TouchableOpacity onPress={handleClose} hitSlop={8}>
@@ -195,7 +201,7 @@ export function ContactForm({ visible, initialData, onSubmit, onClose }: Props) 
             </View>
           </View>
         </ScrollView>
-      </View>
+      </SafeAreaView>
 
       {/* Relationship picker modal */}
       <Modal visible={showRelPicker} transparent animationType="slide" onRequestClose={() => setShowRelPicker(false)}>

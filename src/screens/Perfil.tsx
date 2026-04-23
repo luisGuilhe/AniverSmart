@@ -1,50 +1,19 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  Alert, ActivityIndicator,
+  View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import * as FileSystem from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
 import { useApp } from '../context/AppContext';
-import { exportDatabase } from '../services/database';
 import { useTheme } from '../hooks/useTheme';
 import { SettingsModal } from '../components/SettingsModal';
 
 const APP_VERSION = '1.0.0';
 
 export default function Perfil() {
-  const { contacts, refreshContacts } = useApp();
+  const { contacts } = useApp();
   const { colors, isDark } = useTheme();
-  const [exporting, setExporting]       = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-
-  const handleExport = async () => {
-    setExporting(true);
-    try {
-      const data = await exportDatabase();
-      const json = JSON.stringify(data, null, 2);
-      const fileUri = `${FileSystem.documentDirectory}aniversmart_backup.json`;
-      await FileSystem.writeAsStringAsync(fileUri, json, { encoding: FileSystem.EncodingType.UTF8 });
-      await Sharing.shareAsync(fileUri, {
-        mimeType: 'application/json',
-        dialogTitle: 'Exportar backup do AniverSmart',
-      });
-    } catch (e: any) {
-      Alert.alert('Erro', `Não foi possível exportar: ${e.message}`);
-    } finally {
-      setExporting(false);
-    }
-  };
-
-  const handleImportInfo = () => {
-    Alert.alert(
-      'Importar Backup',
-      'Para importar, copie o arquivo de backup para o dispositivo e confirme. Esta ação adicionará os contatos do backup ao seu banco de dados atual.',
-      [{ text: 'OK' }]
-    );
-  };
 
   const total    = contacts.length;
   const google   = contacts.filter(c => c.fromGoogle === 1).length;
@@ -70,7 +39,7 @@ export default function Perfil() {
         <View style={styles.hero}>
           <Text style={[styles.pageTitle, { color: colors.textPrimary }]}>Perfil</Text>
           <Text style={[styles.pageSubtitle, { color: colors.textSecondary }]}>
-            Configurações e backup
+            Configurações e informações
           </Text>
         </View>
 
@@ -81,8 +50,8 @@ export default function Perfil() {
           <StatCard label="GOOGLE" value={google}  color="#3b82f6"         bg="#dbeafe"              />
         </View>
 
-        {/* Backup section */}
-        <View style={styles.sectionBlock}>
+        {/* Backup section — desabilitado temporariamente (funcionalidade em desenvolvimento) */}
+        {/* <View style={styles.sectionBlock}>
           <Text style={[styles.sectionHeader, { color: colors.textMuted }]}>BACKUP LOCAL</Text>
           <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <MenuItem
@@ -104,7 +73,7 @@ export default function Perfil() {
               colors={colors}
             />
           </View>
-        </View>
+        </View> */}
 
         {/* About section */}
         <View style={styles.sectionBlock}>

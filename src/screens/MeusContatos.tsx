@@ -11,11 +11,12 @@ import { ContactForm } from '../components/ContactForm';
 import { MessagePreview } from '../components/MessagePreview';
 import { NotificationPanel } from '../components/NotificationPanel';
 import { LoadingSpinner } from '../components/LoadingSpinner';
-import { useBirthdayNotifications } from '../hooks/useBirthdayNotifications';
+import { useApp } from '../context/AppContext';
 import { Contact } from '../services/database';
 
 export default function MeusContatos() {
   const { contacts, loading, addContact, editContact, removeContact } = useContacts();
+  const { unreadCount } = useApp();
   const { colors } = useTheme();
 
   const [search, setSearch]                   = useState('');
@@ -23,7 +24,6 @@ export default function MeusContatos() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [editingContact, setEditingContact]   = useState<Contact | undefined>();
   const [messageContact, setMessageContact]   = useState<Contact | null>(null);
-  const { totalCount } = useBirthdayNotifications();
 
   const filtered = useMemo(() => {
     if (!search.trim()) return contacts;
@@ -92,9 +92,9 @@ export default function MeusContatos() {
         </View>
         <TouchableOpacity hitSlop={8} onPress={() => setShowNotifications(true)}>
           <Ionicons name="notifications-outline" size={22} color={colors.textSecondary} />
-          {totalCount > 0 && (
+          {unreadCount > 0 && (
             <View style={[styles.badge, { backgroundColor: colors.todayBadge }]}>
-              <Text style={styles.badgeText}>{totalCount > 9 ? '9+' : totalCount}</Text>
+              <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
             </View>
           )}
         </TouchableOpacity>

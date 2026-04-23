@@ -1,41 +1,59 @@
+import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
+import CryptoJS from 'crypto-js';
 
-const KEY = 'AniverSmart_2024_SecureKey_32chr!';
+const STORE_KEY = 'aniversmart_enc_key_v1';
 
-function toHex(buffer: Uint8Array): string {
-  return Array.from(buffer).map(b => b.toString(16).padStart(2, '0')).join('');
+// Chave legada usada apenas para migração de dados existentes (XOR, obsoleto).
+const LEGACY_KEY = 'AniverSmart_2024_SecureKey_32chr!';
+
+let cachedKey: string | null = null;
+
+/** Deve ser chamado uma única vez no boot do app, antes de qualquer acesso ao DB. */
+export async function initEncryption(): Promise<void> {
+  let key = await SecureStore.getItemAsync(STORE_KEY);
+  if (!key) {
+    const bytes = await Crypto.getRandomBytesAsync(32);
+    key = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+    await SecureStore.setItemAsync(STORE_KEY, key);
+  }
+  cachedKey = key;
 }
 
-function xorBytes(data: Uint8Array, key: Uint8Array): Uint8Array {
-  return data.map((byte, i) => byte ^ key[i % key.length]);
+/** Detecta dados criptografados com o esquema legado (XOR → hex). */
+export function isLegacyEncrypted(s: string): boolean {
+  return (
+    typeof s === 'string' &&
+    s.length > 0 &&
+    s.length % 2 === 0 &&
+    /^[0-9a-f]+$/.test(s)
+  );
 }
 
-function strToBytes(str: string): Uint8Array {
-  return new TextEncoder().encode(str);
-}
-
-function bytesToStr(bytes: Uint8Array): string {
-  return new TextDecoder().decode(bytes);
-}
-
-export function encryptPhone(phone: string): string {
+function legacyDecrypt(hex: string): string {
   try {
-    const dataBytes = strToBytes(phone);
-    const keyBytes = strToBytes(KEY);
-    const encrypted = xorBytes(dataBytes, keyBytes);
-    return toHex(encrypted);
+    const bytes = new Uint8Array(hex.match(/.{2}/g)!.map(b => parseInt(b, 16)));
+    const keyBytes = new TextEncoder().encode(LEGACY_KEY);
+    const decrypted = bytes.map((byte, i) => byte ^ keyBytes[i % keyBytes.length]);
+    return new TextDecoder().decode(decrypted);
   } catch {
-    return phone;
+    return '';
   }
 }
 
+export function encryptPhone(phone: string): string {
+  if (!cachedKey) throw new Error('Encryption not initialized — call initEncryption() first');
+  return CryptoJS.AES.encrypt(phone, cachedKey).toString();
+}
+
 export function decryptPhone(encrypted: string): string {
+  if (!encrypted || typeof encrypted !== 'string') return '';
   try {
-    const bytes = new Uint8Array(encrypted.match(/.{2}/g)!.map(b => parseInt(b, 16)));
-    const keyBytes = strToBytes(KEY);
-    const decrypted = xorBytes(bytes, keyBytes);
-    return bytesToStr(decrypted);
+    if (isLegacyEncrypted(encrypted)) return legacyDecrypt(encrypted);
+    if (!cachedKey) return '';
+    const bytes = CryptoJS.AES.decrypt(encrypted, cachedKey);
+    return bytes.toString(CryptoJS.enc.Utf8) || '';
   } catch {
-    return encrypted;
+    return '';
   }
 }

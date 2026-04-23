@@ -3,11 +3,14 @@ import {
   View, Text, TextInput, StyleSheet, TouchableOpacity,
   Modal, ActivityIndicator, ScrollView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { Contact } from '../services/database';
 import { sendWhatsAppMessage } from '../services/whatsapp';
 import { useMessages } from '../hooks/useMessages';
+import { isValidPhone } from '../utils/validation';
+import { maskPhone } from '../utils/formatting';
 
 interface Props {
   visible: boolean;
@@ -18,9 +21,11 @@ interface Props {
 export function MessagePreview({ visible, contact, onClose }: Props) {
   const { colors } = useTheme();
   const { generate, generating, saveMessageToHistory } = useMessages();
-  const [message, setMessage]   = useState('');
-  const [sending, setSending]   = useState(false);
+  const [message, setMessage]     = useState('');
+  const [sending, setSending]     = useState(false);
   const [generated, setGenerated] = useState(false);
+
+  const hasValidPhone = contact ? isValidPhone(contact.phone) : false;
 
   const handleGenerate = async () => {
     if (!contact) return;
@@ -30,7 +35,7 @@ export function MessagePreview({ visible, contact, onClose }: Props) {
   };
 
   const handleSend = async () => {
-    if (!contact || !message.trim()) return;
+    if (!contact || !message.trim() || !hasValidPhone) return;
     setSending(true);
     try {
       const sent = await sendWhatsAppMessage(contact.phone, message);
@@ -55,7 +60,7 @@ export function MessagePreview({ visible, contact, onClose }: Props) {
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={handleClose}>
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
         {/* Header */}
         <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.divider }]}>
           <TouchableOpacity onPress={handleClose} hitSlop={8}>
@@ -80,15 +85,27 @@ export function MessagePreview({ visible, contact, onClose }: Props) {
             </View>
             <View style={styles.contactInfo}>
               <Text style={[styles.contactName, { color: colors.textPrimary }]}>{contact.name}</Text>
-              <Text style={[styles.contactPhone, { color: colors.textSecondary }]}>{contact.phone}</Text>
+              <Text style={[styles.contactPhone, { color: colors.textSecondary }]}>
+                {hasValidPhone ? maskPhone(contact.phone) : 'Sem telefone cadastrado'}
+              </Text>
             </View>
           </View>
 
+          {/* Aviso de telefone ausente */}
+          {!hasValidPhone && (
+            <View style={[styles.noPhoneWarning, { backgroundColor: colors.surfaceVariant ?? colors.surface, borderColor: colors.border }]}>
+              <Ionicons name="warning-outline" size={16} color={colors.textMuted} />
+              <Text style={[styles.noPhoneText, { color: colors.textSecondary }]}>
+                Este contato não tem WhatsApp cadastrado. Edite o contato para adicionar um número.
+              </Text>
+            </View>
+          )}
+
           {!generated ? (
             <TouchableOpacity
-              style={[styles.generateBtn, { backgroundColor: colors.primaryButton }]}
+              style={[styles.generateBtn, { backgroundColor: colors.primaryButton }, !hasValidPhone && styles.disabledBtn]}
               onPress={handleGenerate}
-              disabled={generating}
+              disabled={generating || !hasValidPhone}
               activeOpacity={0.85}
             >
               {generating ? (
@@ -130,9 +147,9 @@ export function MessagePreview({ visible, contact, onClose }: Props) {
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.sendBtn, (!message.trim() || sending) && styles.disabledBtn]}
+                  style={[styles.sendBtn, (!message.trim() || sending || !hasValidPhone) && styles.disabledBtn]}
                   onPress={handleSend}
-                  disabled={!message.trim() || sending}
+                  disabled={!message.trim() || sending || !hasValidPhone}
                   activeOpacity={0.85}
                 >
                   {sending ? (
@@ -148,7 +165,7 @@ export function MessagePreview({ visible, contact, onClose }: Props) {
             </>
           )}
         </ScrollView>
-      </View>
+      </SafeAreaView>
     </Modal>
   );
 }
@@ -181,6 +198,15 @@ const styles = StyleSheet.create({
   contactInfo: { flex: 1 },
   contactName: { fontSize: 16, fontWeight: '700' },
   contactPhone: { fontSize: 13, marginTop: 2 },
+  noPhoneWarning: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  noPhoneText: { flex: 1, fontSize: 13, lineHeight: 18 },
   generateBtn: {
     flexDirection: 'row',
     alignItems: 'center',

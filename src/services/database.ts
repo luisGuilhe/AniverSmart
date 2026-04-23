@@ -1,5 +1,5 @@
 import * as SQLite from 'expo-sqlite';
-import { encryptPhone, decryptPhone } from '../utils/encryption';
+import { encryptPhone, decryptPhone, isLegacyEncrypted } from '../utils/encryption';
 
 export interface Contact {
   id: number;
@@ -19,14 +19,25 @@ export interface MessageHistory {
   sentAt: string;
 }
 
-let db: SQLite.SQLiteDatabase | null = null;
+export interface NotificationRecord {
+  id: number;
+  contactId: number;
+  contactName: string;
+  sentAt: string;
+  isRead: boolean;
+}
+
+let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
 export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
-  if (!db) {
-    db = await SQLite.openDatabaseAsync('aniversmart.db');
-    await initDatabase(db);
+  if (!dbPromise) {
+    dbPromise = (async () => {
+      const database = await SQLite.openDatabaseAsync('aniversmart.db');
+      await initDatabase(database);
+      return database;
+    })();
   }
-  return db;
+  return dbPromise;
 }
 
 async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
@@ -51,6 +62,18 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
       sent_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS notification_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      contact_id INTEGER NOT NULL,
+      contact_name TEXT NOT NULL,
+      sent_at TEXT NOT NULL,
+      is_read INTEGER DEFAULT 0
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_contacts_birth_date ON contacts(birth_date);
+    CREATE INDEX IF NOT EXISTS idx_notification_history_sent_at ON notification_history(sent_at);
+    CREATE INDEX IF NOT EXISTS idx_notification_history_is_read ON notification_history(is_read);
   `);
 }
 
@@ -134,6 +157,58 @@ export async function getMessageHistoryForContact(contactId: number): Promise<Me
     message: r.message,
     sentAt: r.sent_at,
   }));
+}
+
+export async function insertNotificationRecord(contactId: number, contactName: string): Promise<void> {
+  const database = await getDatabase();
+  await database.runAsync(
+    'INSERT INTO notification_history (contact_id, contact_name, sent_at) VALUES (?, ?, ?)',
+    [contactId, contactName, new Date().toISOString()]
+  );
+}
+
+export async function getNotificationHistory(): Promise<NotificationRecord[]> {
+  const database = await getDatabase();
+  const rows = await database.getAllAsync<any>(
+    'SELECT * FROM notification_history ORDER BY sent_at DESC LIMIT 100'
+  );
+  return rows.map(r => ({
+    id: r.id,
+    contactId: r.contact_id,
+    contactName: r.contact_name,
+    sentAt: r.sent_at,
+    isRead: r.is_read === 1,
+  }));
+}
+
+export async function markNotificationRead(id: number): Promise<void> {
+  const database = await getDatabase();
+  await database.runAsync('UPDATE notification_history SET is_read = 1 WHERE id = ?', [id]);
+}
+
+export async function markAllNotificationsRead(): Promise<void> {
+  const database = await getDatabase();
+  await database.runAsync('UPDATE notification_history SET is_read = 1 WHERE is_read = 0');
+}
+
+/** Re-criptografa contatos que ainda usam o esquema legado XOR → AES-256. */
+export async function migrateLegacyEncryption(): Promise<void> {
+  const database = await getDatabase();
+  const rows = await database.getAllAsync<any>(
+    'SELECT id, phone_encrypted FROM contacts'
+  );
+  const toMigrate = rows.filter(r => isLegacyEncrypted(r.phone_encrypted));
+  if (toMigrate.length === 0) return;
+
+  await database.withTransactionAsync(async () => {
+    for (const row of toMigrate) {
+      const phone = decryptPhone(row.phone_encrypted);
+      await database.runAsync(
+        'UPDATE contacts SET phone_encrypted = ? WHERE id = ?',
+        [encryptPhone(phone), row.id]
+      );
+    }
+  });
 }
 
 export async function exportDatabase(): Promise<Contact[]> {

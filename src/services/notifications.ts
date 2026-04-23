@@ -1,16 +1,16 @@
 import * as Notifications from 'expo-notifications';
 import * as TaskManager from 'expo-task-manager';
 import * as BackgroundFetch from 'expo-background-fetch';
-import * as FileSystem from 'expo-file-system';
+import { documentDirectory, readAsStringAsync, writeAsStringAsync } from 'expo-file-system/legacy';
 import Constants from 'expo-constants';
-import { getAllContacts } from './database';
+import { getAllContacts, insertNotificationRecord } from './database';
 import { daysUntilBirthday } from '../utils/formatting';
 
-// Notificações locais funcionam no Expo Go; background fetch não
 const IS_EXPO_GO = Constants.appOwnership === 'expo';
 
 const BACKGROUND_TASK = 'birthday-check';
-const NOTIFIED_FILE = `${FileSystem.documentDirectory}notified_today.json`;
+const DAILY_CHECK_IDENTIFIER = 'aniversmart-daily-check';
+const NOTIFIED_FILE = `${documentDirectory}notified_today.json`;
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -29,10 +29,9 @@ export async function requestNotificationPermission(): Promise<boolean> {
   return status === 'granted';
 }
 
-// Retorna lista de IDs já notificados hoje
 async function getNotifiedToday(): Promise<Set<number>> {
   try {
-    const content = await FileSystem.readAsStringAsync(NOTIFIED_FILE);
+    const content = await readAsStringAsync(NOTIFIED_FILE);
     const { date, ids } = JSON.parse(content);
     if (date === todayKey()) return new Set<number>(ids);
   } catch {
@@ -42,7 +41,7 @@ async function getNotifiedToday(): Promise<Set<number>> {
 }
 
 async function saveNotifiedToday(ids: Set<number>): Promise<void> {
-  await FileSystem.writeAsStringAsync(
+  await writeAsStringAsync(
     NOTIFIED_FILE,
     JSON.stringify({ date: todayKey(), ids: [...ids] })
   );
@@ -53,42 +52,61 @@ function todayKey(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+let isChecking = false;
+
 export async function checkAndNotifyBirthdays(): Promise<void> {
-  const granted = await requestNotificationPermission();
-  if (!granted) return;
+  if (isChecking) return;
+  isChecking = true;
+  try {
+    const granted = await requestNotificationPermission();
+    if (!granted) return;
 
-  const contacts = await getAllContacts();
-  const todayBirthdays = contacts.filter(c => daysUntilBirthday(c.birthDate) === 0);
-  if (todayBirthdays.length === 0) return;
+    const contacts = await getAllContacts();
+    const todayBirthdays = contacts.filter(c => daysUntilBirthday(c.birthDate) === 0);
+    if (todayBirthdays.length === 0) return;
 
-  const alreadyNotified = await getNotifiedToday();
-  const toNotify = todayBirthdays.filter(c => !alreadyNotified.has(c.id));
-  if (toNotify.length === 0) return;
+    const alreadyNotified = await getNotifiedToday();
+    const toNotify = todayBirthdays.filter(c => !alreadyNotified.has(c.id));
+    if (toNotify.length === 0) return;
 
-  for (let i = 0; i < toNotify.length; i++) {
-    const contact = toNotify[i];
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: '🎂 Aniversário hoje!',
-        body: `Hoje é aniversário de ${contact.name}. Não esqueça de parabenizar!`,
-        data: { contactId: contact.id },
-        sound: true,
-      },
-      trigger: i === 0 ? null : { seconds: i * 2, repeats: false },
-    });
-    alreadyNotified.add(contact.id);
+    for (let i = 0; i < toNotify.length; i++) {
+      const contact = toNotify[i];
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: '🎂 Aniversário hoje!',
+          // Mensagem genérica para não expor nome na tela de bloqueio
+          body: 'Você tem um aniversário para comemorar. Abra o app para saber mais.',
+          data: { contactId: contact.id },
+          sound: true,
+        },
+        trigger: i === 0 ? null : {
+          type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+          seconds: i * 2,
+          repeats: false,
+        },
+      });
+      await insertNotificationRecord(contact.id, contact.name);
+      alreadyNotified.add(contact.id);
+    }
+
+    await saveNotifiedToday(alreadyNotified);
+  } finally {
+    isChecking = false;
   }
-
-  await saveNotifiedToday(alreadyNotified);
 }
 
-// Agenda notificação diária às 8h para disparar o check
+// Agenda notificação diária às 8h usando identificador fixo — NÃO cancela outras notificações
 export async function scheduleDailyCheck(): Promise<void> {
-  await Notifications.cancelAllScheduledNotificationsAsync();
+  try {
+    await Notifications.cancelScheduledNotificationAsync(DAILY_CHECK_IDENTIFIER);
+  } catch {
+    // notificação ainda não existia, ok
+  }
 
   await Notifications.scheduleNotificationAsync({
+    identifier: DAILY_CHECK_IDENTIFIER,
     content: {
-      title: '🎂 Verificando aniversários...',
+      title: '',
       body: '',
       data: { type: 'daily-check' },
       sound: false,
@@ -101,7 +119,6 @@ export async function scheduleDailyCheck(): Promise<void> {
   });
 }
 
-// Background task — roda quando o app está em segundo plano (não disponível no Expo Go)
 TaskManager.defineTask(BACKGROUND_TASK, async () => {
   try {
     await checkAndNotifyBirthdays();
@@ -112,14 +129,17 @@ TaskManager.defineTask(BACKGROUND_TASK, async () => {
 });
 
 export async function registerBackgroundTask(): Promise<void> {
-  if (IS_EXPO_GO) return; // background fetch não suportado no Expo Go
+  if (IS_EXPO_GO) return;
   try {
-    await BackgroundFetch.registerTaskAsync(BACKGROUND_TASK, {
-      minimumInterval: 60 * 60 * 8,
-      stopOnTerminate: false,
-      startOnBoot: true,
-    });
+    const isRegistered = await TaskManager.isTaskRegisteredAsync(BACKGROUND_TASK);
+    if (!isRegistered) {
+      await BackgroundFetch.registerTaskAsync(BACKGROUND_TASK, {
+        minimumInterval: 60 * 60 * 8,
+        stopOnTerminate: false,
+        startOnBoot: true,
+      });
+    }
   } catch {
-    // já registrado ou não suportado no dispositivo
+    // não suportado no dispositivo
   }
 }

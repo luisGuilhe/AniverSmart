@@ -12,7 +12,6 @@ export function formatDateFull(date: Date): string {
 }
 
 export function parseDateString(dateStr: string): Date | null {
-  // Accepts DD/MM/YYYY or YYYY-MM-DD
   if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
     const [day, month, year] = dateStr.split('/').map(Number);
     const d = new Date(year, month - 1, day);
@@ -27,16 +26,25 @@ export function parseDateString(dateStr: string): Date | null {
   return null;
 }
 
+function isLeapYear(year: number): boolean {
+  return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+}
+
 export function daysUntilBirthday(birthDateStr: string): number {
   const today = new Date();
   const parts = birthDateStr.split('-');
   const birthMonth = parseInt(parts[1], 10) - 1;
   const birthDay = parseInt(parts[2], 10);
 
-  const thisYear = new Date(today.getFullYear(), birthMonth, birthDay);
-  const nextYear = new Date(today.getFullYear() + 1, birthMonth, birthDay);
-
   const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+  // Nascidos em 29/02: usa 28/02 em anos não-bissextos para não gerar data inválida
+  const resolveDay = (year: number) =>
+    birthMonth === 1 && birthDay === 29 && !isLeapYear(year) ? 28 : birthDay;
+
+  const thisYear = new Date(today.getFullYear(), birthMonth, resolveDay(today.getFullYear()));
+  const nextYear = new Date(today.getFullYear() + 1, birthMonth, resolveDay(today.getFullYear() + 1));
+
   const diff = thisYear.getTime() - todayMidnight.getTime();
 
   if (diff < 0) {
@@ -50,10 +58,8 @@ export function formatPhone(value: string): string {
   if (digits.length <= 2)  return `(${digits}`;
   if (digits.length <= 6)  return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
   if (digits.length === 10) {
-    // Fixo: (XX) XXXX-XXXX
     return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
   }
-  // Celular: (XX) 9XXXX-XXXX
   return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
 }
 
@@ -70,16 +76,15 @@ export function maskPhone(phone: string): string {
 }
 
 export function formatBirthDateForDB(dateStr: string): string {
-  // Convert DD/MM/YYYY to YYYY-MM-DD
   if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
     const [day, month, year] = dateStr.split('/');
     return `${year}-${month}-${day}`;
   }
-  return dateStr;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+  throw new Error(`Formato de data inválido: ${dateStr}`);
 }
 
 export function formatBirthDateForDisplay(dateStr: string): string {
-  // Convert YYYY-MM-DD to DD/MM/YYYY
   if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
     const [year, month, day] = dateStr.split('-');
     return `${day}/${month}/${year}`;

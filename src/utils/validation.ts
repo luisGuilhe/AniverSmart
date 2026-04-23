@@ -61,10 +61,8 @@ export function isValidPhone(phone: string): boolean {
   return number[0] >= '2' && number[0] <= '8';
 }
 
-const VALID_RELATIONSHIPS = new Set(RELATIONSHIP_TYPES.map(r => r.value));
-
 export function isValidRelationship(rel: string): boolean {
-  return VALID_RELATIONSHIPS.has(rel);
+  return RELATIONSHIP_TYPES.some(r => r.value === rel);
 }
 
 export interface ContactFormErrors {

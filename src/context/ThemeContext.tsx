@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useColorScheme } from 'react-native';
-import * as FileSystem from 'expo-file-system';
+import { documentDirectory, readAsStringAsync, writeAsStringAsync } from 'expo-file-system/legacy';
 import { LightColors, DarkColors, ThemeColors } from '../styles/colors';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
@@ -12,11 +12,11 @@ interface ThemeContextValue {
   colors: ThemeColors;
 }
 
-const PREFS_PATH = `${FileSystem.documentDirectory}theme_prefs.json`;
+const PREFS_PATH = `${documentDirectory}theme_prefs.json`;
 
 async function loadSavedMode(): Promise<ThemeMode> {
   try {
-    const raw = await FileSystem.readAsStringAsync(PREFS_PATH);
+    const raw = await readAsStringAsync(PREFS_PATH);
     const parsed = JSON.parse(raw);
     if (parsed.mode === 'light' || parsed.mode === 'dark' || parsed.mode === 'system') {
       return parsed.mode;
@@ -29,7 +29,7 @@ async function loadSavedMode(): Promise<ThemeMode> {
 
 async function saveMode(mode: ThemeMode): Promise<void> {
   try {
-    await FileSystem.writeAsStringAsync(PREFS_PATH, JSON.stringify({ mode }));
+    await writeAsStringAsync(PREFS_PATH, JSON.stringify({ mode }));
   } catch {
     // ignore write errors
   }
