@@ -35,8 +35,9 @@ export function ContactForm({ visible, initialData, onSubmit, onClose }: Props) 
     initialData?.birthDate ? formatBirthDateForDisplay(initialData.birthDate) : ''
   );
   const [relationship, setRelationship] = useState(initialData?.relationship ?? '');
-  const [phone, setPhone]           = useState(
-    initialData?.phone ? formatPhone(initialData.phone) : ''
+  // Armazena apenas os dígitos brutos para evitar estados inconsistentes ao editar
+  const [phoneDigits, setPhoneDigits] = useState(
+    (initialData?.phone ?? '').replace(/\D/g, '')
   );
   const [photoUri, setPhotoUri]     = useState(initialData?.photoUri ?? '');
   const [errors, setErrors]         = useState<ContactFormErrors>({});
@@ -47,7 +48,7 @@ export function ContactForm({ visible, initialData, onSubmit, onClose }: Props) 
     setName(initialData?.name ?? '');
     setBirthDate(initialData?.birthDate ? formatBirthDateForDisplay(initialData.birthDate) : '');
     setRelationship(initialData?.relationship ?? '');
-    setPhone(initialData?.phone ? formatPhone(initialData.phone) : '');
+    setPhoneDigits((initialData?.phone ?? '').replace(/\D/g, ''));
     setPhotoUri(initialData?.photoUri ?? '');
     setErrors({});
   }, [initialData]);
@@ -60,7 +61,7 @@ export function ContactForm({ visible, initialData, onSubmit, onClose }: Props) 
   const handleClose = () => { resetForm(); onClose(); };
 
   const handleSubmit = async () => {
-    const formErrors = validateContactForm({ name, birthDate, relationship, phone });
+    const formErrors = validateContactForm({ name, birthDate, relationship, phone: phoneDigits });
     if (Object.keys(formErrors).length > 0) { setErrors(formErrors); return; }
     setSaving(true);
     try {
@@ -68,7 +69,7 @@ export function ContactForm({ visible, initialData, onSubmit, onClose }: Props) 
         name: name.trim(),
         birthDate: formatBirthDateForDB(birthDate),
         relationship,
-        phone: phone.replace(/\D/g, ''),
+        phone: phoneDigits,
         photoUri: photoUri || undefined,
       });
       handleClose();
@@ -180,12 +181,12 @@ export function ContactForm({ visible, initialData, onSubmit, onClose }: Props) 
               <Ionicons name="chatbubble-outline" size={18} color={colors.textMuted} />
               <TextInput
                 style={[styles.input, { color: colors.textPrimary }]}
-                value={phone}
-                onChangeText={t => setPhone(formatPhone(t))}
+                value={formatPhone(phoneDigits)}
+                onChangeText={t => setPhoneDigits(t.replace(/\D/g, '').slice(0, 11))}
                 placeholder="(11) 99999-9999"
                 placeholderTextColor={colors.textMuted}
                 keyboardType="phone-pad"
-                maxLength={15}
+                maxLength={16}
               />
             </View>
           </Field>

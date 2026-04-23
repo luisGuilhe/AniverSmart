@@ -9,6 +9,13 @@ const LEGACY_KEY = 'AniverSmart_2024_SecureKey_32chr!';
 
 let cachedKey: string | null = null;
 
+function legacyEncrypt(phone: string): string {
+  const dataBytes = new TextEncoder().encode(phone);
+  const keyBytes = new TextEncoder().encode(LEGACY_KEY);
+  const encrypted = dataBytes.map((byte, i) => byte ^ keyBytes[i % keyBytes.length]);
+  return Array.from(encrypted).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 /** Deve ser chamado uma única vez no boot do app, antes de qualquer acesso ao DB. */
 export async function initEncryption(): Promise<void> {
   let key = await SecureStore.getItemAsync(STORE_KEY);
@@ -42,7 +49,7 @@ function legacyDecrypt(hex: string): string {
 }
 
 export function encryptPhone(phone: string): string {
-  if (!cachedKey) throw new Error('Encryption not initialized — call initEncryption() first');
+  if (!cachedKey) return legacyEncrypt(phone);
   return CryptoJS.AES.encrypt(phone, cachedKey).toString();
 }
 
